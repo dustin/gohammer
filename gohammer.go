@@ -30,13 +30,15 @@ func doStuff(src <-chan controller.Command,
 		return
 	}
 
+	flags := 19
+
 	for {
 		var cmd controller.Command
 		cmd = <- src
 		switch cmd.Cmd {
 		default: fail(cmd)
 		case controller.GET: res <- r(mc.Get(client, cmd.Key), cmd)
-		case controller.ADD: res <- r(mc.Add(client, cmd.Key, body), cmd)
+		case controller.ADD: res <- r(mc.Add(client, cmd.Key, flags, 0, body), cmd)
 		case controller.DEL: res <- r(mc.Del(client, cmd.Key), cmd)
 		}
 	}

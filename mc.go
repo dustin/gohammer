@@ -63,7 +63,7 @@ func Del(client *MemcachedClient, key string) MCResponse {
 }
 
 func store(client *MemcachedClient, opcode uint8,
-	key string, body []byte) MCResponse {
+	key string, flags int, exp int, body []byte) MCResponse {
 
 	var req MCRequest
 	req.Opcode = opcode
@@ -71,19 +71,19 @@ func store(client *MemcachedClient, opcode uint8,
 	req.Opaque = 0
 	req.Key = make([]byte, len(key))
 	copy(req.Key, key)
-	// This is actually just two 32 bit numbers.  I don't care
-	// about them, though.
-	req.Extras = WriteUint64(0)
+	req.Extras = WriteUint64(uint64(flags) << 32 | uint64(exp))
 	req.Body = body
 	return send(client, req)
 }
 
-func Add(client *MemcachedClient, key string, body []byte) MCResponse {
-	return store(client, ADD, key, body)
+func Add(client *MemcachedClient, key string, flags int, exp int,
+	body []byte) MCResponse {
+	return store(client, ADD, key, flags, exp, body)
 }
 
-func Set(client *MemcachedClient, key string, body []byte) MCResponse {
-	return store(client, SET, key, body)
+func Set(client *MemcachedClient, key string, flags int, exp int,
+	body []byte) MCResponse {
+	return store(client, SET, key, flags, exp, body)
 }
 
 func getResponse(client *MemcachedClient) MCResponse {
