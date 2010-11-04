@@ -68,7 +68,8 @@ func report(m map[uint8]int, tdiff int64) {
 	for _,v := range m {
 		total += float32(v)
 	}
-	log.Printf("%.2f ops/s", total / float32(tdiff))
+	log.Printf("%.2f ops/s (add=%d, get=%d, del=%d)",
+		total / float32(tdiff), m[ADD], m[GET], m[DEL])
 	resetCounters(m)
 }
 
