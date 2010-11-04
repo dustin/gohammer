@@ -29,7 +29,6 @@ func doStuff(src <-chan controller.Command,
 		return
 	}
 
-	log.Printf("Doing stuff.")
 	for {
 		var cmd controller.Command
 		cmd = <- src

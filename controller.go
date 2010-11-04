@@ -46,25 +46,42 @@ func New() (<-chan Command, chan<- Result) {
 	}
 
 	go handleResponses(responses)
-	go createCommands(ready, keys)
+	go createCommands(ready, keys, states)
 	return ready, responses
 }
 
 func handleResponses(ch <-chan Result) {
+	i := 0
 	for {
 		result := <- ch
-		log.Printf("Response from %s (%s): %d",
-			toString(result.Cmd.Cmd),
-			result.Cmd.Key,
-			result.Res.Status)
+		i++
+		if result.Res.Status != 0 {
+			log.Printf("Response from %s (%s): %d",
+				toString(result.Cmd.Cmd),
+				result.Cmd.Key,
+				result.Res.Status)
+		}
+		if i % 10000 == 0 {
+			log.Printf("Sent %d commands", i)
+		}
 	}
 }
 
-func createCommands(ch chan<- Command, keys []string) {
+func createCommands(ch chan<- Command, keys []string, states []bool) {
 	for {
-		var cmd Command;
-		cmd.Cmd = uint8(rand.Int() % numCommands)
-		cmd.Key = keys[rand.Int() % numKeys]
-		ch <- cmd
+		ids := rand.Perm(numKeys)
+		for i := 0; i < numKeys; i++ {
+			thisId := ids[i]
+			var cmd Command
+			if states[thisId] {
+				cmd.Cmd = uint8(DEL)
+				states[thisId] = false
+			} else {
+				cmd.Cmd = uint8(ADD)
+				states[thisId] = true
+			}
+			cmd.Key = keys[thisId]
+			ch <- cmd
+		}
 	}
 }
