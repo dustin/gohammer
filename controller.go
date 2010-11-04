@@ -8,7 +8,6 @@ import "./mc_constants"
 
 const numCommands = 3
 const readySize = 100
-const numKeys = 1000000
 
 const (
 	GET = iota
@@ -35,7 +34,7 @@ func toString(id uint8) (string) {
 	panic("unhandled")
 }
 
-func New() (<-chan Command, chan<- Result) {
+func New(numKeys int) (<-chan Command, chan<- Result) {
 	ready := make(chan Command, readySize)
 	responses := make(chan Result)
 	keys := make([]string, numKeys)
@@ -102,8 +101,8 @@ func handleResponses(ch <-chan Result) {
 
 func createCommands(ch chan<- Command, keys []string, states []bool) {
 	for {
-		ids := rand.Perm(numKeys)
-		for i := 0; i < numKeys; i++ {
+		ids := rand.Perm(len(keys))
+		for i := 0; i < len(keys); i++ {
 			thisId := ids[i]
 			var cmd Command
 			if states[thisId] {

@@ -44,11 +44,12 @@ func doStuff(src <-chan controller.Command,
 var prot = flag.String("prot", "tcp", "Layer 3 protocol (tcp, tcp4, tcp6)")
 var dest = flag.String("dest", "localhost:11211", "Host:port to connect to")
 var concurrency = flag.Int("concurrency", 32, "Number of concurrent clients")
+var nkeys = flag.Int("keys", 1000000, "Number of keys")
 
 func main() {
 	flag.Parse()
         log.Printf("Connecting %d clients to %s/%s", *concurrency, *prot, *dest)
-	src, results := controller.New()
+	src, results := controller.New(*nkeys)
 	death := make(chan bool)
         for i := 0; i < *concurrency; i++ {
 		go doStuff(src, results, death, mc.Connect(*prot, *dest))
