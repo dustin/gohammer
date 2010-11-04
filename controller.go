@@ -3,6 +3,7 @@ package controller
 import "log"
 import "fmt"
 import "rand"
+import "time"
 import "./mc_constants"
 
 const numCommands = 3
@@ -50,19 +51,51 @@ func New() (<-chan Command, chan<- Result) {
 	return ready, responses
 }
 
-func handleResponses(ch <-chan Result) {
-	i := 0
+func resetCounters(m map[uint8]int) {
+	m[GET] = 0
+	m[ADD] = 0
+	m[DEL] = 0
+}
+
+func reportSignaler(ch chan bool) {
 	for {
-		result := <- ch
-		i++
-		if result.Res.Status != 0 {
-			log.Printf("Response from %s (%s): %d",
-				toString(result.Cmd.Cmd),
-				result.Cmd.Key,
-				result.Res.Status)
-		}
-		if i % 10000 == 0 {
-			log.Printf("Sent %d commands", i)
+		time.Sleep(5 * 1000 * 1000 * 1000)
+		ch <- true
+	}
+}
+
+func report(m map[uint8]int, tdiff int64) {
+	var total float32 = 0
+	for _,v := range m {
+		total += float32(v)
+	}
+	log.Printf("%.2f ops/s", total / float32(tdiff))
+	resetCounters(m)
+}
+
+func handleResponses(ch <-chan Result) {
+	cmds := make(map[uint8]int)
+	statNotifier := make(chan bool)
+	go reportSignaler(statNotifier)
+	resetCounters(cmds)
+	prev := time.Seconds()
+	for {
+		select {
+			// Do we need to report?
+		case <- statNotifier:
+			now := time.Seconds()
+			report(cmds, (now - prev))
+			prev = now
+
+			// Do we have a result?
+		case result := <- ch:
+			cmds[result.Cmd.Cmd]++
+			if result.Res.Status != 0 {
+				log.Printf("Response from %s (%s): %d",
+					toString(result.Cmd.Cmd),
+					result.Cmd.Key,
+					result.Res.Status)
+			}
 		}
 	}
 }
