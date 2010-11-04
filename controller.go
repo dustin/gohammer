@@ -7,7 +7,7 @@ import "time"
 import "./mc_constants"
 
 const numCommands = 3
-const readySize = 100
+const readySize = 1024
 
 const (
 	GET = iota
