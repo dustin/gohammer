@@ -38,15 +38,13 @@ func New(numKeys int) (<-chan Command, chan<- Result) {
 	ready := make(chan Command, readySize)
 	responses := make(chan Result)
 	keys := make([]string, numKeys)
-	states := make([]bool, numKeys)
 
 	for i := 0; i < numKeys; i++ {
 		keys[i] = fmt.Sprintf("k%d", i)
-		states[i] = false
 	}
 
 	go handleResponses(responses)
-	go createCommands(ready, keys, states)
+	go createCommands(ready, keys)
 	return ready, responses
 }
 
@@ -100,21 +98,21 @@ func handleResponses(ch <-chan Result) {
 	}
 }
 
-func createCommands(ch chan<- Command, keys []string, states []bool) {
+func createCommands(ch chan<- Command, keys []string) {
+	cmds := []uint8{ADD, GET, DEL}
+	cmdi := 0
 	for {
 		ids := rand.Perm(len(keys))
 		for i := 0; i < len(keys); i++ {
 			thisId := ids[i]
 			var cmd Command
-			if states[thisId] {
-				cmd.Cmd = uint8(DEL)
-				states[thisId] = false
-			} else {
-				cmd.Cmd = uint8(ADD)
-				states[thisId] = true
-			}
 			cmd.Key = keys[thisId]
+			cmd.Cmd = cmds[cmdi]
 			ch <- cmd
+		}
+		cmdi++
+		if cmdi >= len(cmds) {
+			cmdi = 0
 		}
 	}
 }
