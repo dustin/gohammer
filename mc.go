@@ -82,6 +82,10 @@ func Add(client *MemcachedClient, key string, body []byte) MCResponse {
 	return store(client, ADD, key, body)
 }
 
+func Set(client *MemcachedClient, key string, body []byte) MCResponse {
+	return store(client, SET, key, body)
+}
+
 func getResponse(client *MemcachedClient) MCResponse {
 	hdrBytes := make([]byte, HDR_LEN)
 	bytesRead, err := io.ReadFull(client.Conn, hdrBytes)
