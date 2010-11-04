@@ -6,37 +6,28 @@ import (
 	"runtime"
 	"./mc"
 	"./controller"
+	"./mc_constants"
 	)
-
-func doGet(client mc.MemcachedClient, cmd controller.Command) {
-	rv := mc.Get(client, cmd.Key)
-	log.Printf("Get response:  %d (%d bytes)", rv.Status, len(rv.Body))
-}
-
-func doAdd(client mc.MemcachedClient, cmd controller.Command) {
-	rv := mc.Add(client, cmd.Key, "hi")
-	log.Printf("Add response:  %d", rv.Status)
-}
-
-func doDel(client mc.MemcachedClient, cmd controller.Command) {
-	rv := mc.Del(client, cmd.Key)
-	log.Printf("Del response:  %d", rv.Status)
-}
 
 func fail(cmd controller.Command) {
 	log.Printf("Unhandled command:  %d", cmd.Cmd)
 	runtime.Goexit()
 }
 
-func die(death chan<- bool) {
-	death <- true
-}
-
 func doStuff(src <-chan controller.Command,
+	res chan<- controller.Result,
 	death chan<- bool,
 	client mc.MemcachedClient) {
 
-	defer die(death)
+	defer func () { death <- true }()
+
+	r := func(response mc_constants.MCResponse,
+		c controller.Command) (rv controller.Result) {
+
+		rv.Cmd = c
+		rv.Res = response
+		return
+	}
 
 	log.Printf("Doing stuff.")
 	for {
@@ -44,9 +35,9 @@ func doStuff(src <-chan controller.Command,
 		cmd = <- src
 		switch cmd.Cmd {
 		default: fail(cmd)
-		case 0: doGet(client, cmd)
-		case 1: doAdd(client, cmd)
-		case 2: doDel(client, cmd)
+		case controller.GET: res <- r(mc.Get(client, cmd.Key), cmd)
+		case controller.ADD: res <- r(mc.Add(client, cmd.Key, "hi"), cmd)
+		case controller.DEL: res <- r(mc.Del(client, cmd.Key), cmd)
 		}
 	}
 }
@@ -58,10 +49,10 @@ var concurrency = flag.Int("concurrency", 32, "Number of concurrent clients")
 func main() {
 	flag.Parse()
         log.Printf("Connecting %d clients to %s/%s", *concurrency, *prot, *dest)
-	c := controller.New()
+	src, results := controller.New()
 	death := make(chan bool)
         for i := 0; i < *concurrency; i++ {
-		go doStuff(c.Ready, death, mc.Connect(*prot, *dest))
+		go doStuff(src, results, death, mc.Connect(*prot, *dest))
 	}
         for i := 0; i < *concurrency; i++ {
 		<- death

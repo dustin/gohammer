@@ -1,49 +1,70 @@
 package controller
 
+import "log"
 import "fmt"
+import "rand"
+import "./mc_constants"
 
+const numCommands = 3
 const readySize = 100
-const numKeys = 10000
+const numKeys = 1000000
+
+const (
+	GET = iota
+	ADD
+	DEL
+	)
 
 type Command struct {
 	Cmd uint8
 	Key string
 }
 
-type Controller struct {
-	// Commands ready for execution
-	Ready chan Command
-	Keys []string
+type Result struct {
+	Cmd Command
+	Res mc_constants.MCResponse
 }
 
-func New() (rv Controller) {
-	rv.Ready = make(chan Command, readySize)
-	rv.Keys = make([]string, numKeys)
+func toString(id uint8) (string) {
+	switch id {
+	case GET: return "GET"
+	case ADD: return "ADD"
+	case DEL: return "DEL"
+	}
+	panic("unhandled")
+}
+
+func New() (<-chan Command, chan<- Result) {
+	ready := make(chan Command, readySize)
+	responses := make(chan Result)
+	keys := make([]string, numKeys)
+	states := make([]bool, numKeys)
 
 	for i := 0; i < numKeys; i++ {
-		rv.Keys[i] = fmt.Sprintf("k%d", i)
+		keys[i] = fmt.Sprintf("k%d", i)
+		states[i] = false
 	}
 
-	go createCommands(rv)
-	return
+	go handleResponses(responses)
+	go createCommands(ready, keys)
+	return ready, responses
 }
 
-func createCommands(c Controller) {
-	i := 0
-	ki := 0
+func handleResponses(ch <-chan Result) {
+	for {
+		result := <- ch
+		log.Printf("Response from %s (%s): %d",
+			toString(result.Cmd.Cmd),
+			result.Cmd.Key,
+			result.Res.Status)
+	}
+}
+
+func createCommands(ch chan<- Command, keys []string) {
 	for {
 		var cmd Command;
-		cmd.Cmd = uint8(i)
-		cmd.Key = c.Keys[ki]
-		c.Ready <- cmd
-
-		i++
-		if i > 2 {
-			i = 0
-		}
-		ki++
-		if ki >= numKeys {
-			ki = 0
-		}
+		cmd.Cmd = uint8(rand.Int() % numCommands)
+		cmd.Key = keys[rand.Int() % numKeys]
+		ch <- cmd
 	}
 }
