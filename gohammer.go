@@ -17,7 +17,7 @@ func fail(cmd controller.Command) {
 func doStuff(src <-chan controller.Command,
 	res chan<- controller.Result,
 	death chan<- bool,
-	client mc.MemcachedClient) {
+	client *mc.MemcachedClient) {
 
 	defer func () { death <- true }()
 

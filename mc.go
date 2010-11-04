@@ -11,26 +11,34 @@ import (
 	"runtime"
 	)
 
+const bufsize = 1024
+
 type MemcachedClient struct {
 	Conn net.Conn
+	writer *bufio.Writer
 }
 
-func Connect(prot string, dest string) (rv MemcachedClient) {
+func Connect(prot string, dest string) (rv *MemcachedClient) {
 	conn, err := net.Dial(prot, "", dest)
         if err != nil {
 		log.Exitf("Failed to connect: %s", err)
 	}
+	rv = new(MemcachedClient)
 	rv.Conn = conn
+	rv.writer, err = bufio.NewWriterSize(rv.Conn, bufsize)
+	if err != nil {
+		panic("Can't make a buffer")
+	}
 	return rv
 }
 
-func send(client MemcachedClient, req MCRequest) (rv MCResponse) {
-	transmitRequest(client.Conn, req)
+func send(client *MemcachedClient, req MCRequest) (rv MCResponse) {
+	transmitRequest(client.writer, req)
 	rv = getResponse(client)
 	return
 }
 
-func Get(client MemcachedClient, key string) MCResponse {
+func Get(client *MemcachedClient, key string) MCResponse {
 	var req MCRequest
 	req.Opcode = GET
 	req.Key = make([]byte, len(key))
@@ -42,7 +50,7 @@ func Get(client MemcachedClient, key string) MCResponse {
 	return send(client, req)
 }
 
-func Del(client MemcachedClient, key string) MCResponse {
+func Del(client *MemcachedClient, key string) MCResponse {
 	var req MCRequest
 	req.Opcode = DELETE
 	req.Key = make([]byte, len(key))
@@ -54,7 +62,7 @@ func Del(client MemcachedClient, key string) MCResponse {
 	return send(client, req)
 }
 
-func store(client MemcachedClient, opcode uint8,
+func store(client *MemcachedClient, opcode uint8,
 	key string, body string) MCResponse {
 
 	var req MCRequest
@@ -70,11 +78,11 @@ func store(client MemcachedClient, opcode uint8,
 	return send(client, req)
 }
 
-func Add(client MemcachedClient, key string, body string) MCResponse {
+func Add(client *MemcachedClient, key string, body string) MCResponse {
 	return store(client, ADD, key, body)
 }
 
-func getResponse(client MemcachedClient) MCResponse {
+func getResponse(client *MemcachedClient) MCResponse {
 	hdrBytes := make([]byte, HDR_LEN)
 	bytesRead, err := io.ReadFull(client.Conn, hdrBytes)
 	if err != nil || bytesRead != HDR_LEN {
@@ -108,8 +116,7 @@ func grokHeader(hdrBytes []byte) (rv MCResponse) {
 	return
 }
 
-func transmitRequest(s net.Conn, req MCRequest) {
-	o := bufio.NewWriter(s)
+func transmitRequest(o *bufio.Writer, req MCRequest) {
 	// 0
 	writeByte(o, REQ_MAGIC)
 	writeByte(o, req.Opcode)
