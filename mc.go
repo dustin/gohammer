@@ -92,25 +92,6 @@ func readContents(s net.Conn, res MCResponse) {
 	readOb(s, res.Body)
 }
 
-/*
-     Byte/     0       |       1       |       2       |       3       |
-        /              |               |               |               |
-       |0 1 2 3 4 5 6 7|0 1 2 3 4 5 6 7|0 1 2 3 4 5 6 7|0 1 2 3 4 5 6 7|
-       +---------------+---------------+---------------+---------------+
-      0| Magic         | Opcode        | Key Length                    |
-       +---------------+---------------+---------------+---------------+
-      4| Extras length | Data type     | Status                        |
-       +---------------+---------------+---------------+---------------+
-      8| Total body length                                             |
-       +---------------+---------------+---------------+---------------+
-     12| Opaque                                                        |
-       +---------------+---------------+---------------+---------------+
-     16| CAS                                                           |
-       |                                                               |
-       +---------------+---------------+---------------+---------------+
-       Total 24 bytes
-*/
-
 func grokHeader(hdrBytes []byte) (rv MCResponse) {
 	if hdrBytes[0] != RES_MAGIC {
 		log.Printf("Bad magic: %x", hdrBytes[0])
@@ -126,42 +107,6 @@ func grokHeader(hdrBytes []byte) (rv MCResponse) {
 	rv.Cas = ReadUint64(hdrBytes, 16)
 	return
 }
-
-/*
-     Byte/     0       |       1       |       2       |       3       |
-        /              |               |               |               |
-       |0 1 2 3 4 5 6 7|0 1 2 3 4 5 6 7|0 1 2 3 4 5 6 7|0 1 2 3 4 5 6 7|
-       +---------------+---------------+---------------+---------------+
-      0| Magic         | Opcode        | Key length                    |
-       +---------------+---------------+---------------+---------------+
-      4| Extras length | Data type     | Reserved                      |
-       +---------------+---------------+---------------+---------------+
-      8| Total body length                                             |
-       +---------------+---------------+---------------+---------------+
-     12| Opaque                                                        |
-       +---------------+---------------+---------------+---------------+
-     16| CAS                                                           |
-       |                                                               |
-       +---------------+---------------+---------------+---------------+
-       Total 24 bytes
-
-
- >28 Read binary protocol data:
- >28   0x80 0x00 0x00 0x01
- >28   0x08 0x00 0x00 0x00
- >28   0x00 0x00 0x00 0x0b
- >28   0x00 0x00 0x00 0x00
- >28   0x00 0x00 0x00 0x00
- >28   0x00 0x00 0x00 0x00
-
-        msg=struct.pack(REQ_PKT_FMT, REQ_MAGIC_BYTE,
-            cmd, len(key), len(extraHeader), dtype, self.vbucketId,
-                len(key) + len(extraHeader) + len(val), opaque, cas)
-
- # magic, opcode, keylen, extralen, datatype, vbucket, bodylen, opaque, cas
- REQ_PKT_FMT=">BBHBBHIIQ"
-
-*/
 
 func transmitRequest(s net.Conn, req MCRequest) {
 	o := bufio.NewWriter(s)
