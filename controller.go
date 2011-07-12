@@ -13,11 +13,11 @@ const (
 	GET = iota
 	ADD
 	DEL
-	)
+)
 
 type Command struct {
-	Cmd uint8
-	Key string
+	Cmd     uint8
+	Key     string
 	VBucket uint16
 }
 
@@ -26,11 +26,14 @@ type Result struct {
 	Res mc_constants.MCResponse
 }
 
-func toString(id uint8) (string) {
+func toString(id uint8) string {
 	switch id {
-	case GET: return "GET"
-	case ADD: return "ADD"
-	case DEL: return "DEL"
+	case GET:
+		return "GET"
+	case ADD:
+		return "ADD"
+	case DEL:
+		return "DEL"
 	}
 	panic("unhandled")
 }
@@ -64,11 +67,11 @@ func reportSignaler(ch chan bool) {
 
 func report(m map[uint8]int, tdiff int64) {
 	var total float32 = 0
-	for _,v := range m {
+	for _, v := range m {
 		total += float32(v)
 	}
 	log.Printf("%.2f ops/s (add=%d, get=%d, del=%d)",
-		total / float32(tdiff), m[ADD], m[GET], m[DEL])
+		total/float32(tdiff), m[ADD], m[GET], m[DEL])
 	resetCounters(m)
 }
 
@@ -80,14 +83,14 @@ func handleResponses(ch <-chan Result) {
 	prev := time.Seconds()
 	for {
 		select {
-			// Do we need to report?
-		case <- statNotifier:
+		// Do we need to report?
+		case <-statNotifier:
 			now := time.Seconds()
 			report(cmds, (now - prev))
 			prev = now
 
 			// Do we have a result?
-		case result := <- ch:
+		case result := <-ch:
 			cmds[result.Cmd.Cmd]++
 			if result.Res.Status != 0 {
 				log.Printf("Response from %s (%s): %d",
@@ -109,7 +112,7 @@ func createCommands(ch chan<- Command, keys []string) {
 			var cmd Command
 			cmd.Key = keys[thisId]
 			cmd.Cmd = cmds[cmdi]
-			cmd.VBucket = uint16(i % 1024);
+			cmd.VBucket = uint16(i % 1024)
 			ch <- cmd
 		}
 		cmdi++

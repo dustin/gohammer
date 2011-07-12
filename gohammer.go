@@ -7,7 +7,7 @@ import (
 	"./mc"
 	"./controller"
 	"./mc_constants"
-	)
+)
 
 func fail(cmd controller.Command) {
 	log.Printf("Unhandled command:  %d", cmd.Cmd)
@@ -15,15 +15,15 @@ func fail(cmd controller.Command) {
 }
 
 func doStuff(src <-chan controller.Command,
-	res chan<- controller.Result,
-	death chan<- bool,
-	body []byte,
-	client *mc.MemcachedClient) {
+res chan<- controller.Result,
+death chan<- bool,
+body []byte,
+client *mc.MemcachedClient) {
 
-	defer func () { death <- true }()
+	defer func() { death <- true }()
 
 	r := func(response mc_constants.MCResponse,
-		c controller.Command) (rv controller.Result) {
+	c controller.Command) (rv controller.Result) {
 
 		rv.Cmd = c
 		rv.Res = response
@@ -34,12 +34,16 @@ func doStuff(src <-chan controller.Command,
 
 	for {
 		var cmd controller.Command
-		cmd = <- src
+		cmd = <-src
 		switch cmd.Cmd {
-		default: fail(cmd)
-		case controller.GET: res <- r(mc.Get(client, cmd.Key), cmd)
-		case controller.ADD: res <- r(mc.Add(client, cmd.Key, flags, 0, body), cmd)
-		case controller.DEL: res <- r(mc.Del(client, cmd.Key), cmd)
+		default:
+			fail(cmd)
+		case controller.GET:
+			res <- r(mc.Get(client, cmd.Key), cmd)
+		case controller.ADD:
+			res <- r(mc.Add(client, cmd.Key, flags, 0, body), cmd)
+		case controller.DEL:
+			res <- r(mc.Del(client, cmd.Key), cmd)
 		}
 	}
 }
@@ -52,7 +56,7 @@ var bodylen = flag.Int("bodylen", 20, "Number of bytes of value")
 
 func main() {
 	flag.Parse()
-        log.Printf("Connecting %d clients to %s/%s", *concurrency, *prot, *dest)
+	log.Printf("Connecting %d clients to %s/%s", *concurrency, *prot, *dest)
 	src, results := controller.New(*nkeys)
 	death := make(chan bool)
 
@@ -63,12 +67,12 @@ func main() {
 	}
 
 	// Start them all
-        for i := 0; i < *concurrency; i++ {
+	for i := 0; i < *concurrency; i++ {
 		go doStuff(src, results, death, body, mc.Connect(*prot, *dest))
 	}
 
 	// Wait for them all to die
-        for i := 0; i < *concurrency; i++ {
-		<- death
+	for i := 0; i < *concurrency; i++ {
+		<-death
 	}
 }

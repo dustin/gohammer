@@ -9,18 +9,18 @@ import (
 	"bufio"
 	"runtime"
 	"encoding/binary"
-	)
+)
 
 const bufsize = 1024
 
 type MemcachedClient struct {
-	Conn net.Conn
+	Conn   net.Conn
 	writer *bufio.Writer
 }
 
 func Connect(prot string, dest string) (rv *MemcachedClient) {
 	conn, err := net.Dial(prot, dest)
-        if err != nil {
+	if err != nil {
 		log.Fatalf("Failed to connect: %s", err)
 	}
 	rv = new(MemcachedClient)
@@ -63,7 +63,7 @@ func Del(client *MemcachedClient, key string) MCResponse {
 }
 
 func store(client *MemcachedClient, opcode uint8,
-	key string, flags int, exp int, body []byte) MCResponse {
+key string, flags int, exp int, body []byte) MCResponse {
 
 	var req MCRequest
 	req.Opcode = opcode
@@ -72,18 +72,18 @@ func store(client *MemcachedClient, opcode uint8,
 	req.Key = make([]byte, len(key))
 	copy(req.Key, key)
 	req.Extras = make([]byte, 8)
-	binary.BigEndian.PutUint64(req.Extras, uint64(flags) << 32 | uint64(exp))
+	binary.BigEndian.PutUint64(req.Extras, uint64(flags)<<32|uint64(exp))
 	req.Body = body
 	return send(client, req)
 }
 
 func Add(client *MemcachedClient, key string, flags int, exp int,
-	body []byte) MCResponse {
+body []byte) MCResponse {
 	return store(client, ADD, key, flags, exp, body)
 }
 
 func Set(client *MemcachedClient, key string, flags int, exp int,
-	body []byte) MCResponse {
+body []byte) MCResponse {
 	return store(client, SET, key, flags, exp, body)
 }
 
@@ -158,27 +158,27 @@ func writeBytes(s *bufio.Writer, data []byte) {
 }
 
 func writeByte(s *bufio.Writer, b byte) {
-        data := make([]byte, 1)
-        data[0] = b
-        writeBytes(s, data)
+	data := make([]byte, 1)
+	data[0] = b
+	writeBytes(s, data)
 }
 
 func writeUint16(s *bufio.Writer, n uint16) {
-        data := []byte{0, 0}
-        binary.BigEndian.PutUint16(data, n)
-        writeBytes(s, data)
+	data := []byte{0, 0}
+	binary.BigEndian.PutUint16(data, n)
+	writeBytes(s, data)
 }
 
 func writeUint32(s *bufio.Writer, n uint32) {
-        data := []byte{0, 0, 0, 0}
-        binary.BigEndian.PutUint32(data, n)
-        writeBytes(s, data)
+	data := []byte{0, 0, 0, 0}
+	binary.BigEndian.PutUint32(data, n)
+	writeBytes(s, data)
 }
 
 func writeUint64(s *bufio.Writer, n uint64) {
-        data := []byte{0, 0, 0, 0, 0, 0, 0, 0}
-        binary.BigEndian.PutUint64(data, n)
-        writeBytes(s, data)
+	data := []byte{0, 0, 0, 0, 0, 0, 0, 0}
+	binary.BigEndian.PutUint64(data, n)
+	writeBytes(s, data)
 }
 
 func readOb(s net.Conn, buf []byte) {
