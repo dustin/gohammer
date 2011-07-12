@@ -18,6 +18,7 @@ const (
 type Command struct {
 	Cmd uint8
 	Key string
+	VBucket uint16
 }
 
 type Result struct {
@@ -108,6 +109,7 @@ func createCommands(ch chan<- Command, keys []string) {
 			var cmd Command
 			cmd.Key = keys[thisId]
 			cmd.Cmd = cmds[cmdi]
+			cmd.VBucket = uint16(i % 1024);
 			ch <- cmd
 		}
 		cmdi++

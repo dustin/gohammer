@@ -72,6 +72,7 @@ type MCRequest struct {
 	Opcode			uint8
 	Cas			uint64
 	Opaque			uint32
+        VBucket                 uint16
 	Extras, Key, Body	[]byte
 	ResponseChannel		chan MCResponse
 }
