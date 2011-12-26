@@ -1,12 +1,12 @@
 package main
 
 import (
-	"log"
-	"flag"
-	"runtime"
-	"./mc"
 	"./controller"
+	"./mc"
 	"./mc_constants"
+	"flag"
+	"log"
+	"runtime"
 )
 
 func fail(cmd controller.Command) {
@@ -15,15 +15,15 @@ func fail(cmd controller.Command) {
 }
 
 func doStuff(src <-chan controller.Command,
-res chan<- controller.Result,
-death chan<- bool,
-body []byte,
-client *mc.MemcachedClient) {
+	res chan<- controller.Result,
+	death chan<- bool,
+	body []byte,
+	client *mc.MemcachedClient) {
 
 	defer func() { death <- true }()
 
 	r := func(response mc_constants.MCResponse,
-	c controller.Command) (rv controller.Result) {
+		c controller.Command) (rv controller.Result) {
 
 		rv.Cmd = c
 		rv.Res = response

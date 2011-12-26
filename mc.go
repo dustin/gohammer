@@ -3,12 +3,12 @@ package mc
 import . "./mc_constants"
 
 import (
-	"net"
-	"log"
-	"io"
 	"bufio"
-	"runtime"
 	"encoding/binary"
+	"io"
+	"log"
+	"net"
+	"runtime"
 )
 
 const bufsize = 1024
@@ -63,7 +63,7 @@ func Del(client *MemcachedClient, key string) MCResponse {
 }
 
 func store(client *MemcachedClient, opcode uint8,
-key string, flags int, exp int, body []byte) MCResponse {
+	key string, flags int, exp int, body []byte) MCResponse {
 
 	var req MCRequest
 	req.Opcode = opcode
@@ -78,12 +78,12 @@ key string, flags int, exp int, body []byte) MCResponse {
 }
 
 func Add(client *MemcachedClient, key string, flags int, exp int,
-body []byte) MCResponse {
+	body []byte) MCResponse {
 	return store(client, ADD, key, flags, exp, body)
 }
 
 func Set(client *MemcachedClient, key string, flags int, exp int,
-body []byte) MCResponse {
+	body []byte) MCResponse {
 	return store(client, SET, key, flags, exp, body)
 }
 
