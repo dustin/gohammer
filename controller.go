@@ -2,7 +2,7 @@ package controller
 
 import "log"
 import "fmt"
-import "rand"
+import "math/rand"
 import "time"
 import "./mc_constants"
 
@@ -80,13 +80,13 @@ func handleResponses(ch <-chan Result) {
 	statNotifier := make(chan bool)
 	go reportSignaler(statNotifier)
 	resetCounters(cmds)
-	prev := time.Seconds()
+	prev := time.Now()
 	for {
 		select {
 		// Do we need to report?
 		case <-statNotifier:
-			now := time.Seconds()
-			report(cmds, (now - prev))
+			now := time.Now()
+			report(cmds, (now.Unix() - prev.Unix()))
 			prev = now
 
 			// Do we have a result?
