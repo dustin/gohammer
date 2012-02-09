@@ -58,7 +58,7 @@ func Del(client *MemcachedClient, key string) gomemcached.MCResponse {
 	return send(client, req)
 }
 
-func store(client *MemcachedClient, opcode uint8,
+func store(client *MemcachedClient, opcode gomemcached.CommandCode,
 	key string, flags int, exp int, body []byte) gomemcached.MCResponse {
 
 	var req gomemcached.MCRequest
@@ -120,7 +120,7 @@ func grokHeader(hdrBytes []byte) (rv gomemcached.MCResponse) {
 func transmitRequest(o *bufio.Writer, req gomemcached.MCRequest) {
 	// 0
 	writeByte(o, gomemcached.REQ_MAGIC)
-	writeByte(o, req.Opcode)
+	writeByte(o, byte(req.Opcode))
 	writeUint16(o, uint16(len(req.Key)))
 	// 4
 	writeByte(o, uint8(len(req.Extras)))
