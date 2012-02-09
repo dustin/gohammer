@@ -1,10 +1,9 @@
-package mc
-
-import . "./mc_constants"
+package main
 
 import (
 	"bufio"
 	"encoding/binary"
+	"github.com/dustin/gomemcached"
 	"io"
 	"log"
 	"net"
@@ -25,22 +24,19 @@ func Connect(prot string, dest string) (rv *MemcachedClient) {
 	}
 	rv = new(MemcachedClient)
 	rv.Conn = conn
-	rv.writer, err = bufio.NewWriterSize(rv.Conn, bufsize)
-	if err != nil {
-		panic("Can't make a buffer")
-	}
+	rv.writer = bufio.NewWriterSize(rv.Conn, bufsize)
 	return rv
 }
 
-func send(client *MemcachedClient, req MCRequest) (rv MCResponse) {
+func send(client *MemcachedClient, req gomemcached.MCRequest) (rv gomemcached.MCResponse) {
 	transmitRequest(client.writer, req)
 	rv = getResponse(client)
 	return
 }
 
-func Get(client *MemcachedClient, key string) MCResponse {
-	var req MCRequest
-	req.Opcode = GET
+func Get(client *MemcachedClient, key string) gomemcached.MCResponse {
+	var req gomemcached.MCRequest
+	req.Opcode = gomemcached.GET
 	req.Key = make([]byte, len(key))
 	copy(req.Key, key)
 	req.Cas = 0
@@ -50,9 +46,9 @@ func Get(client *MemcachedClient, key string) MCResponse {
 	return send(client, req)
 }
 
-func Del(client *MemcachedClient, key string) MCResponse {
-	var req MCRequest
-	req.Opcode = DELETE
+func Del(client *MemcachedClient, key string) gomemcached.MCResponse {
+	var req gomemcached.MCRequest
+	req.Opcode = gomemcached.DELETE
 	req.Key = make([]byte, len(key))
 	copy(req.Key, key)
 	req.Cas = 0
@@ -63,9 +59,9 @@ func Del(client *MemcachedClient, key string) MCResponse {
 }
 
 func store(client *MemcachedClient, opcode uint8,
-	key string, flags int, exp int, body []byte) MCResponse {
+	key string, flags int, exp int, body []byte) gomemcached.MCResponse {
 
-	var req MCRequest
+	var req gomemcached.MCRequest
 	req.Opcode = opcode
 	req.Cas = 0
 	req.Opaque = 0
@@ -78,19 +74,19 @@ func store(client *MemcachedClient, opcode uint8,
 }
 
 func Add(client *MemcachedClient, key string, flags int, exp int,
-	body []byte) MCResponse {
-	return store(client, ADD, key, flags, exp, body)
+	body []byte) gomemcached.MCResponse {
+	return store(client, gomemcached.ADD, key, flags, exp, body)
 }
 
 func Set(client *MemcachedClient, key string, flags int, exp int,
-	body []byte) MCResponse {
-	return store(client, SET, key, flags, exp, body)
+	body []byte) gomemcached.MCResponse {
+	return store(client, gomemcached.SET, key, flags, exp, body)
 }
 
-func getResponse(client *MemcachedClient) MCResponse {
-	hdrBytes := make([]byte, HDR_LEN)
+func getResponse(client *MemcachedClient) gomemcached.MCResponse {
+	hdrBytes := make([]byte, gomemcached.HDR_LEN)
 	bytesRead, err := io.ReadFull(client.Conn, hdrBytes)
-	if err != nil || bytesRead != HDR_LEN {
+	if err != nil || bytesRead != gomemcached.HDR_LEN {
 		log.Printf("Error reading message: %s (%d bytes)", err, bytesRead)
 		runtime.Goexit()
 	}
@@ -99,14 +95,14 @@ func getResponse(client *MemcachedClient) MCResponse {
 	return res
 }
 
-func readContents(s net.Conn, res MCResponse) {
+func readContents(s net.Conn, res gomemcached.MCResponse) {
 	readOb(s, res.Extras)
 	readOb(s, res.Key)
 	readOb(s, res.Body)
 }
 
-func grokHeader(hdrBytes []byte) (rv MCResponse) {
-	if hdrBytes[0] != RES_MAGIC {
+func grokHeader(hdrBytes []byte) (rv gomemcached.MCResponse) {
+	if hdrBytes[0] != gomemcached.RES_MAGIC {
 		log.Printf("Bad magic: %x", hdrBytes[0])
 		runtime.Goexit()
 	}
@@ -121,9 +117,9 @@ func grokHeader(hdrBytes []byte) (rv MCResponse) {
 	return
 }
 
-func transmitRequest(o *bufio.Writer, req MCRequest) {
+func transmitRequest(o *bufio.Writer, req gomemcached.MCRequest) {
 	// 0
-	writeByte(o, REQ_MAGIC)
+	writeByte(o, gomemcached.REQ_MAGIC)
 	writeByte(o, req.Opcode)
 	writeUint16(o, uint16(len(req.Key)))
 	// 4

@@ -1,29 +1,26 @@
 package main
 
 import (
-	"./controller"
-	"./mc"
-	"./mc_constants"
 	"flag"
+	"github.com/dustin/gomemcached"
 	"log"
 	"runtime"
 )
 
-func fail(cmd controller.Command) {
+func fail(cmd Command) {
 	log.Printf("Unhandled command:  %d", cmd.Cmd)
 	runtime.Goexit()
 }
 
-func doStuff(src <-chan controller.Command,
-	res chan<- controller.Result,
+func doStuff(src <-chan Command,
+	res chan<- Result,
 	death chan<- bool,
 	body []byte,
-	client *mc.MemcachedClient) {
+	client *MemcachedClient) {
 
 	defer func() { death <- true }()
 
-	r := func(response mc_constants.MCResponse,
-		c controller.Command) (rv controller.Result) {
+	r := func(response gomemcached.MCResponse, c Command) (rv Result) {
 
 		rv.Cmd = c
 		rv.Res = response
@@ -33,17 +30,17 @@ func doStuff(src <-chan controller.Command,
 	flags := 19
 
 	for {
-		var cmd controller.Command
+		var cmd Command
 		cmd = <-src
 		switch cmd.Cmd {
 		default:
 			fail(cmd)
-		case controller.GET:
-			res <- r(mc.Get(client, cmd.Key), cmd)
-		case controller.ADD:
-			res <- r(mc.Add(client, cmd.Key, flags, 0, body), cmd)
-		case controller.DEL:
-			res <- r(mc.Del(client, cmd.Key), cmd)
+		case GET:
+			res <- r(Get(client, cmd.Key), cmd)
+		case ADD:
+			res <- r(Add(client, cmd.Key, flags, 0, body), cmd)
+		case DEL:
+			res <- r(Del(client, cmd.Key), cmd)
 		}
 	}
 }
@@ -57,7 +54,7 @@ var bodylen = flag.Int("bodylen", 20, "Number of bytes of value")
 func main() {
 	flag.Parse()
 	log.Printf("Connecting %d clients to %s/%s", *concurrency, *prot, *dest)
-	src, results := controller.New(*nkeys)
+	src, results := NewController(*nkeys)
 	death := make(chan bool)
 
 	// Initialize the value
@@ -68,7 +65,7 @@ func main() {
 
 	// Start them all
 	for i := 0; i < *concurrency; i++ {
-		go doStuff(src, results, death, body, mc.Connect(*prot, *dest))
+		go doStuff(src, results, death, body, Connect(*prot, *dest))
 	}
 
 	// Wait for them all to die

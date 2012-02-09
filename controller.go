@@ -1,10 +1,12 @@
-package controller
+package main
 
-import "log"
-import "fmt"
-import "math/rand"
-import "time"
-import "./mc_constants"
+import (
+	"fmt"
+	"github.com/dustin/gomemcached"
+	"log"
+	"math/rand"
+	"time"
+)
 
 const numCommands = 3
 const readySize = 1024
@@ -23,7 +25,7 @@ type Command struct {
 
 type Result struct {
 	Cmd Command
-	Res mc_constants.MCResponse
+	Res gomemcached.MCResponse
 }
 
 func toString(id uint8) string {
@@ -38,7 +40,7 @@ func toString(id uint8) string {
 	panic("unhandled")
 }
 
-func New(numKeys int) (<-chan Command, chan<- Result) {
+func NewController(numKeys int) (<-chan Command, chan<- Result) {
 	ready := make(chan Command, readySize)
 	responses := make(chan Result)
 	keys := make([]string, numKeys)
