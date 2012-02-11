@@ -2,9 +2,11 @@ package main
 
 import (
 	"flag"
-	"github.com/dustin/gomemcached"
 	"log"
 	"runtime"
+
+	"github.com/dustin/gomemcached"
+	"github.com/dustin/gomemcached/client"
 )
 
 func fail(cmd Command) {
@@ -16,9 +18,15 @@ func doStuff(src <-chan Command,
 	res chan<- Result,
 	death chan<- bool,
 	body []byte,
-	client *MemcachedClient) {
+	prot, addr string) {
 
 	defer func() { death <- true }()
+
+	client, err := memcached.Connect(prot, addr)
+	if err != nil {
+		log.Printf("Error connecting to %v/%v: %v", prot, addr, err)
+		runtime.Goexit()
+	}
 
 	r := func(response gomemcached.MCResponse, c Command) (rv Result) {
 
@@ -36,11 +44,11 @@ func doStuff(src <-chan Command,
 		default:
 			fail(cmd)
 		case GET:
-			res <- r(Get(client, cmd.Key), cmd)
+			res <- r(client.Get(0, cmd.Key), cmd)
 		case ADD:
-			res <- r(Add(client, cmd.Key, flags, 0, body), cmd)
+			res <- r(client.Add(0, cmd.Key, flags, 0, body), cmd)
 		case DEL:
-			res <- r(Del(client, cmd.Key), cmd)
+			res <- r(client.Del(0, cmd.Key), cmd)
 		}
 	}
 }
@@ -65,7 +73,7 @@ func main() {
 
 	// Start them all
 	for i := 0; i < *concurrency; i++ {
-		go doStuff(src, results, death, body, Connect(*prot, *dest))
+		go doStuff(src, results, death, body, *prot, *dest)
 	}
 
 	// Wait for them all to die
