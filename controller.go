@@ -24,8 +24,9 @@ type Command struct {
 }
 
 type Result struct {
-	Cmd Command
-	Res gomemcached.MCResponse
+	Cmd   Command
+	Error error
+	Res   gomemcached.MCResponse
 }
 
 func toString(id uint8) string {

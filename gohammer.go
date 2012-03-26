@@ -28,9 +28,9 @@ func doStuff(src <-chan Command,
 		runtime.Goexit()
 	}
 
-	r := func(response gomemcached.MCResponse, c Command) (rv Result) {
-
+	r := func(response gomemcached.MCResponse, e error, c Command) (rv Result) {
 		rv.Cmd = c
+		rv.Error = err
 		rv.Res = response
 		return
 	}
@@ -44,11 +44,14 @@ func doStuff(src <-chan Command,
 		default:
 			fail(cmd)
 		case GET:
-			res <- r(client.Get(0, cmd.Key), cmd)
+			resp, err := client.Get(0, cmd.Key)
+			res <- r(resp, err, cmd)
 		case ADD:
-			res <- r(client.Add(0, cmd.Key, flags, 0, body), cmd)
+			resp, err := client.Add(0, cmd.Key, flags, 0, body)
+			res <- r(resp, err, cmd)
 		case DEL:
-			res <- r(client.Del(0, cmd.Key), cmd)
+			resp, err := client.Del(0, cmd.Key)
+			res <- r(resp, err, cmd)
 		}
 	}
 }
