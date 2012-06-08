@@ -2,125 +2,85 @@ package main
 
 import (
 	"fmt"
-	"github.com/dustin/gomemcached"
 	"log"
-	"math/rand"
+	"strings"
+	"sync/atomic"
 	"time"
+
+	"github.com/dustin/gomemcached"
 )
 
 const numCommands = 3
 const readySize = 1024
 
-const (
-	GET = iota
-	ADD
-	DEL
-)
+var stats [256]int64
 
 type Command struct {
-	Cmd     uint8
+	Cmd     gomemcached.CommandCode
 	Key     string
 	VBucket uint16
 }
 
 type Result struct {
-	Cmd   Command
 	Error error
-	Res   gomemcached.MCResponse
+	Res   *gomemcached.MCResponse
 }
 
-func toString(id uint8) string {
-	switch id {
-	case GET:
-		return "GET"
-	case ADD:
-		return "ADD"
-	case DEL:
-		return "DEL"
-	}
-	panic("unhandled")
-}
-
-func NewController(numKeys int) (<-chan Command, chan<- Result) {
-	ready := make(chan Command, readySize)
+func NewController(numKeys int) chan<- Result {
 	responses := make(chan Result)
-	keys := make([]string, numKeys)
 
-	for i := 0; i < numKeys; i++ {
-		keys[i] = fmt.Sprintf("k%d", i)
-	}
-
-	go handleResponses(responses)
-	go createCommands(ready, keys)
-	return ready, responses
-}
-
-func resetCounters(m map[uint8]int) {
-	m[GET] = 0
-	m[ADD] = 0
-	m[DEL] = 0
+	go handleResults(responses)
+	return responses
 }
 
 func reportSignaler(ch chan bool) {
 	for {
-		time.Sleep(5 * 1000 * 1000 * 1000)
+		time.Sleep(5 * time.Second)
 		ch <- true
 	}
 }
 
-func report(m map[uint8]int, tdiff int64) {
+func report(tdiff int64) {
 	var total float32 = 0
-	for _, v := range m {
+	trailer := []string{}
+	for i, v := range stats {
 		total += float32(v)
+		if v > 0 {
+			trailer = append(trailer,
+				fmt.Sprintf("%s: %v",
+					gomemcached.CommandCode(i), v))
+			atomic.AddInt64(&stats[i], 0-v)
+		}
 	}
-	log.Printf("%.2f ops/s (add=%d, get=%d, del=%d)",
-		total/float32(tdiff), m[ADD], m[GET], m[DEL])
-	resetCounters(m)
+	log.Printf("%.2f ops/s (%s)",
+		total/float32(tdiff),
+		strings.Join(trailer, ", "))
+
 }
 
-func handleResponses(ch <-chan Result) {
-	cmds := make(map[uint8]int)
+func handleResults(ch <-chan Result) {
 	statNotifier := make(chan bool)
 	go reportSignaler(statNotifier)
-	resetCounters(cmds)
 	prev := time.Now()
 	for {
 		select {
 		// Do we need to report?
 		case <-statNotifier:
 			now := time.Now()
-			report(cmds, (now.Unix() - prev.Unix()))
+			report((now.Unix() - prev.Unix()))
 			prev = now
 
 			// Do we have a result?
 		case result := <-ch:
-			cmds[result.Cmd.Cmd]++
-			if result.Res.Status != 0 {
-				log.Printf("Response from %s (%s): %d",
-					toString(result.Cmd.Cmd),
-					result.Cmd.Key,
-					result.Res.Status)
+			if result.Error != nil {
+				log.Printf("Got an error:  %v", result.Error)
+			} else {
+				if result.Res.Status != 0 {
+					log.Printf("Response from %s: %s",
+						result.Res.Opcode,
+						result.Res.Status)
+				}
 			}
-		}
-	}
-}
-
-func createCommands(ch chan<- Command, keys []string) {
-	cmds := []uint8{ADD, GET, DEL}
-	cmdi := 0
-	for {
-		ids := rand.Perm(len(keys))
-		for i := 0; i < len(keys); i++ {
-			thisId := ids[i]
-			var cmd Command
-			cmd.Key = keys[thisId]
-			cmd.Cmd = cmds[cmdi]
-			cmd.VBucket = uint16(i % 1024)
-			ch <- cmd
-		}
-		cmdi++
-		if cmdi >= len(cmds) {
-			cmdi = 0
 		}
 	}
 }
