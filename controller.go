@@ -33,13 +33,6 @@ func NewController(numKeys int) chan<- Result {
 	return responses
 }
 
-func reportSignaler(ch chan bool) {
-	for {
-		time.Sleep(5 * time.Second)
-		ch <- true
-	}
-}
-
 func report(tdiff int64) {
 	var total float32 = 0
 	trailer := []string{}
@@ -59,14 +52,12 @@ func report(tdiff int64) {
 }
 
 func handleResults(ch <-chan Result) {
-	statNotifier := make(chan bool)
-	go reportSignaler(statNotifier)
+	reportSignaler := time.NewTicker(time.Second * 5)
 	prev := time.Now()
 	for {
 		select {
 		// Do we need to report?
-		case <-statNotifier:
-			now := time.Now()
+		case now := <-reportSignaler.C:
 			report((now.Unix() - prev.Unix()))
 			prev = now
 
