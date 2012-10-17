@@ -10,10 +10,14 @@ import (
 	"runtime/pprof"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/dustin/gomemcached"
 	"github.com/dustin/gomemcached/client"
 )
+
+// Modified atomically.
+var isDone int32
 
 func handleResponses(client *memcached.Client, ch chan<- Result) {
 	for {
@@ -110,6 +114,9 @@ func doStuff(id int,
 
 			if i%1000 == 0 {
 				applyLocalStats()
+				if atomic.LoadInt32(&isDone) == 1 {
+					return
+				}
 			}
 		}
 		applyLocalStats()
@@ -127,6 +134,8 @@ var concurrency = flag.Int("concurrency", 32, "Number of concurrent clients")
 var nkeys = flag.Int("keys", 1000000, "Number of keys")
 var bodylen = flag.Int("bodylen", 20, "Number of bytes of value")
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
+var testDuration = flag.Duration("duration", 0,
+	"Total duration of test (0 == forever)")
 
 func main() {
 	flag.Parse()
@@ -154,6 +163,13 @@ func main() {
 	wg.Add(*concurrency)
 	for i := 0; i < *concurrency; i++ {
 		go doStuff(i, results, &wg, body, *prot, *dest)
+	}
+
+	if *testDuration != 0 {
+		time.AfterFunc(*testDuration, func() {
+			log.Printf("Marking done.")
+			atomic.StoreInt32(&isDone, 1)
+		})
 	}
 
 	// Wait for them all to die
