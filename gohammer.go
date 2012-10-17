@@ -52,7 +52,7 @@ func sendCommand(client *memcached.Client,
 			Opaque:  0,
 			Extras:  []byte{},
 			Body:    []byte{}})
-	case gomemcached.ADDQ:
+	case gomemcached.ADDQ, gomemcached.SETQ:
 		req := &gomemcached.MCRequest{
 			Opcode:  opcode,
 			VBucket: vb,
