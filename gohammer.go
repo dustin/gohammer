@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"os"
 	"runtime/pprof"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -100,17 +101,12 @@ func doStuff(id int,
 		}
 	}
 
-	cmds := []gomemcached.CommandCode{
-		gomemcached.ADDQ,
-		gomemcached.GETQ,
-		gomemcached.DELETEQ,
-	}
 	cmdi := 0
 	ids := rand.Perm(len(keys))
 	for {
 		for i, thisId := range ids {
 			key := keys[thisId]
-			opcode := cmds[cmdi]
+			opcode := cmds.cmds[cmdi]
 
 			sendCommand(client, opcode, vbuckets[thisId], key, body)
 			localstats[opcode]++
@@ -124,7 +120,7 @@ func doStuff(id int,
 		}
 		applyLocalStats()
 		cmdi++
-		if cmdi >= len(cmds) {
+		if cmdi >= len(cmds.cmds) {
 			cmdi = 0
 			ids = rand.Perm(len(keys))
 		}
@@ -141,7 +137,55 @@ var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 var testDuration = flag.Duration("duration", 0,
 	"Total duration of test (0 == forever)")
 
+type opSeqType struct {
+	cmds []gomemcached.CommandCode
+}
+
+var cmds = opSeqType{cmds: []gomemcached.CommandCode{
+	gomemcached.ADDQ,
+	gomemcached.GETQ,
+	gomemcached.DELETEQ,
+}}
+
+var (
+	cmd_ops   = map[string]gomemcached.CommandCode{}
+	cmd_names = map[gomemcached.CommandCode]string{}
+)
+
+func init() {
+	for v, k := range gomemcached.CommandNames {
+		k = strings.ToLower(k)
+		if strings.HasSuffix(k, "q") {
+			n := k[:len(k)-1]
+			cmd_ops[n] = v
+			cmd_names[v] = n
+		}
+	}
+}
+
+func (o opSeqType) String() string {
+	a := []string{}
+	for _, v := range o.cmds {
+		a = append(a, cmd_names[v])
+	}
+	return strings.Join(a, ",")
+}
+
+func (o *opSeqType) Set(to string) error {
+	parts := strings.Split(to, ",")
+	o.cmds = o.cmds[:0]
+	for _, p := range parts {
+		v, ok := cmd_ops[p]
+		if !ok {
+			return fmt.Errorf("Unknown command: %v", p)
+		}
+		o.cmds = append(o.cmds, v)
+	}
+	return nil
+}
+
 func main() {
+	flag.Var(&cmds, "ops", "The sequene of operations to perform")
 	flag.Parse()
 
 	if *cpuprofile != "" {
