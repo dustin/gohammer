@@ -31,6 +31,7 @@ func handleResponses(client *memcached.Client, ch chan<- Result) {
 
 func sendCommand(client *memcached.Client,
 	opcode gomemcached.CommandCode,
+	vb uint16,
 	key []byte,
 	body []byte) {
 
@@ -44,7 +45,7 @@ func sendCommand(client *memcached.Client,
 	case gomemcached.GETQ, gomemcached.DELETEQ:
 		err = client.Transmit(&gomemcached.MCRequest{
 			Opcode:  opcode,
-			VBucket: 0,
+			VBucket: vb,
 			Key:     key,
 			Cas:     0,
 			Opaque:  0,
@@ -53,7 +54,7 @@ func sendCommand(client *memcached.Client,
 	case gomemcached.ADDQ:
 		req := &gomemcached.MCRequest{
 			Opcode:  opcode,
-			VBucket: 0,
+			VBucket: vb,
 			Key:     key,
 			Cas:     0,
 			Opaque:  0,
@@ -78,8 +79,10 @@ func doStuff(id int,
 	localstats := [256]int64{}
 
 	keys := make([][]byte, *nkeys / *concurrency)
+	vbuckets := make([]uint16, *nvbuckets)
 	for i := 0; i < len(keys); i++ {
 		keys[i] = []byte(fmt.Sprintf("c%d.k%d", id, i))
+		vbuckets = append(vbuckets, uint16(rand.Intn(*nvbuckets)))
 	}
 
 	client, err := memcached.Connect(prot, addr)
@@ -109,7 +112,7 @@ func doStuff(id int,
 			key := keys[thisId]
 			opcode := cmds[cmdi]
 
-			sendCommand(client, opcode, key, body)
+			sendCommand(client, opcode, vbuckets[thisId], key, body)
 			localstats[opcode]++
 
 			if i%1000 == 0 {
@@ -133,6 +136,7 @@ var dest = flag.String("dest", "localhost:11211", "Host:port to connect to")
 var concurrency = flag.Int("concurrency", 32, "Number of concurrent clients")
 var nkeys = flag.Int("keys", 1000000, "Number of keys")
 var bodylen = flag.Int("bodylen", 20, "Number of bytes of value")
+var nvbuckets = flag.Int("nvbuckets", 1, "Number of vbuckets (sequential)")
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 var testDuration = flag.Duration("duration", 0,
 	"Total duration of test (0 == forever)")
